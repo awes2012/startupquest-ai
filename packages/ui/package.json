@@ -2,6 +2,14 @@
   "name": "@startupquest/ui",
   "private": true,
   "version": "0.1.0",
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.37",
+    "typescript": "^5.4.0"
+  },
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
