@@ -3,7 +3,7 @@ import { createServer } from 'http'
 import { readFileSync, readdirSync } from 'fs'
 import { join, basename } from 'path'
 import { readFileSync as readFile } from 'fs'
-import { pingDb } from './db'
+import { pingDb, prisma } from './db'
 
 function json(res: any, status: number, data: any) {
   res.writeHead(status, { 'Content-Type': 'application/json' })
@@ -109,7 +109,58 @@ function loadRubricSummary(rubricId: string): { id: string; kind?: string; versi
   }
 }
 
-const server = createServer((req, res) => {
+async function dbLoadLessons(track?: string): Promise<LessonMeta[]> {
+  try {
+    const where = track ? { track } : {}
+    const rows = await prisma.lesson.findMany({
+      where,
+      orderBy: [{ order: 'asc' }, { slug: 'asc' }]
+    })
+    return rows.map((r) => ({
+      slug: r.slug,
+      track: r.track,
+      order: r.order,
+      xpReward: r.xpReward,
+      rubric: r.rubricId,
+      title: r.title,
+      summary: r.summary || undefined
+    }))
+  } catch {
+    return []
+  }
+}
+
+async function dbLoadLesson(slug: string): Promise<{ meta?: LessonMeta }> {
+  try {
+    const r = await prisma.lesson.findUnique({ where: { slug } })
+    if (!r) return {}
+    return {
+      meta: {
+        slug: r.slug,
+        track: r.track,
+        order: r.order,
+        xpReward: r.xpReward,
+        rubric: r.rubricId,
+        title: r.title,
+        summary: r.summary || undefined
+      }
+    }
+  } catch {
+    return {}
+  }
+}
+
+async function dbRubricSummary(rubricId: string): Promise<{ id: string; kind?: string; version?: number } | undefined> {
+  try {
+    const r = await prisma.rubric.findUnique({ where: { id: rubricId } })
+    if (!r) return undefined
+    return { id: r.id, kind: r.kind as any, version: r.version }
+  } catch {
+    return undefined
+  }
+}
+
+const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://localhost')
   const method = req.method || 'GET'
 
@@ -134,15 +185,25 @@ const server = createServer((req, res) => {
   // Lessons
   if (method === 'GET' && url.pathname === '/lessons') {
     const track = url.searchParams.get('track') || undefined
-    const items = loadLessons().filter((l) => (track ? l.track === track : true))
+    // Try DB first
+    let items = await dbLoadLessons(track || undefined)
+    if (!items || items.length === 0) {
+      // Fallback to files
+      items = loadLessons().filter((l) => (track ? l.track === track : true))
+    }
     return json(res, 200, { items })
   }
 
   if (method === 'GET' && url.pathname.startsWith('/lessons/')) {
     const slug = url.pathname.split('/')[2]
-    const { meta } = loadLesson(slug)
+    // Try DB first
+    let meta = (await dbLoadLesson(slug)).meta
+    if (!meta) {
+      // Fallback to files
+      meta = loadLesson(slug).meta
+    }
     if (!meta) return json(res, 404, { error: 'Lesson not found' })
-    const rubric = loadRubricSummary(meta.rubric)
+    const rubric = (await dbRubricSummary(meta.rubric)) || loadRubricSummary(meta.rubric)
     return json(res, 200, { ...meta, rubric })
   }
 
