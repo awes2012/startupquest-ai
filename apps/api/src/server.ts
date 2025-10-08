@@ -273,10 +273,12 @@ const server = createServer(async (req, res) => {
 
   // Admin sync endpoints (dev only)
   if (method === 'POST' && url.pathname === '/admin/rubrics/publish') {
+    if (!isAdmin(req)) return unauthorized(res)
     await syncRubricsFromFiles()
     return json(res, 200, { ok: true })
   }
   if (method === 'POST' && url.pathname === '/admin/lessons/sync') {
+    if (!isAdmin(req)) return unauthorized(res)
     await syncLessonsFromFiles()
     return json(res, 200, { ok: true })
   }
@@ -329,3 +331,14 @@ server.listen(PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`[api] listening on http://localhost:${PORT}`)
 })
+function unauthorized(res: any) {
+  res.writeHead(401, { 'Content-Type': 'application/json' })
+  res.end(JSON.stringify({ error: 'Unauthorized' }))
+}
+
+function isAdmin(req: any): boolean {
+  const hdr = (req.headers?.['x-admin-key'] || req.headers?.['X-Admin-Key']) as string | undefined
+  const key = Array.isArray(hdr) ? hdr[0] : hdr
+  const expected = process.env.ADMIN_KEY
+  return Boolean(expected && key && key === expected)
+}
