@@ -37,4 +37,9 @@ jobs:
             --filter @startupquest/ai \
             --filter @startupquest/analytics \
             typecheck
-
+      - name: Generate Prisma client (api)
+        run: pnpm --filter api run db:generate
+      - name: Typecheck api
+        run: pnpm --filter api run typecheck
+      - name: Build api
+        run: pnpm --filter api run build

@@ -2,6 +2,7 @@
 import { createServer } from 'http'
 import { readFileSync, readdirSync } from 'fs'
 import { join, basename } from 'path'
+import { pingDb } from './db'
 
 function json(res: any, status: number, data: any) {
   res.writeHead(status, { 'Content-Type': 'application/json' })
@@ -124,6 +125,14 @@ const server = createServer((req, res) => {
     if (!meta) return json(res, 404, { error: 'Lesson not found' })
     const rubric = loadRubricSummary(meta.rubric)
     return json(res, 200, { ...meta, rubric })
+  }
+
+  // DB health
+  if (method === 'GET' && url.pathname === '/health/db') {
+    pingDb()
+      .then((ok) => json(res, ok ? 200 : 503, { ok }))
+      .catch(() => json(res, 503, { ok: false }))
+    return
   }
 
   // Submissions
