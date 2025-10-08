@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@startupquest/core/*": ["packages/core/src/*"],
+      "@startupquest/ai/*": ["packages/ai/src/*"],
+      "@startupquest/analytics/*": ["packages/analytics/src/*"],
+      "@startupquest/ui/*": ["packages/ui/src/*"],
+      "@startupquest/lessons/*": ["packages/lessons/*"]
+    }
+  }
+}
+

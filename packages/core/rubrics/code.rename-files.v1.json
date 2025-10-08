@@ -1,0 +1,14 @@
+{
+  "id": "code.rename-files.v1",
+  "kind": "code",
+  "version": 1,
+  "spec": {
+    "language": ["python", "node"],
+    "tests": [
+      { "name": "creates_5_files", "command": "node run.js", "assert": "count('client-*.txt')==5" },
+      { "name": "has_date", "assert": "regex('client-\\d{8}-[1-5]\\.txt')" }
+    ],
+    "timeoutMs": 15000
+  }
+}
+

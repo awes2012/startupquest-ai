@@ -1,0 +1,16 @@
+{
+  "id": "business.brief.v1",
+  "kind": "business",
+  "version": 1,
+  "spec": {
+    "criteria": [
+      { "name": "Target Customer", "rule": "includes ICP" },
+      { "name": "Pain", "rule": "states top-3 pains" },
+      { "name": "Solution", "rule": "clear value prop" },
+      { "name": "Channel", "rule": "lists 1-2 channels" },
+      { "name": "Revenue", "rule": "mentions pricing test" }
+    ],
+    "scoreRange": [0, 25]
+  }
+}
+

@@ -1,0 +1,13 @@
+{
+  "id": "quiz.sample.v1",
+  "kind": "quiz",
+  "version": 1,
+  "spec": {
+    "questions": [
+      { "id": "q1", "text": "What is MVP?", "options": ["Minimum Viable Product", "Most Valuable Player"], "answer": 0 },
+      { "id": "q2", "text": "What does CPU stand for?", "options": ["Central Processing Unit", "Compute Power Unit"], "answer": 0 }
+    ],
+    "partialCredit": true
+  }
+}
+
