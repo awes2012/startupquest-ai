@@ -109,6 +109,70 @@ function loadRubricSummary(rubricId: string): { id: string; kind?: string; versi
   }
 }
 
+async function syncRubricsFromFiles() {
+  const files = readdirSync(RUBRICS_DIR).filter((f) => f.endsWith('.json'))
+  for (const f of files) {
+    try {
+      const json = JSON.parse(readFile(join(RUBRICS_DIR, f), 'utf8'))
+      await prisma.rubric.upsert({
+        where: { id: String(json.id || f) },
+        update: {
+          name: String(json.id || f),
+          version: Number(json.version ?? 1),
+          kind: String(json.kind || 'quiz'),
+          spec: json
+        },
+        create: {
+          id: String(json.id || f),
+          name: String(json.id || f),
+          version: Number(json.version ?? 1),
+          kind: String(json.kind || 'quiz'),
+          spec: json
+        }
+      })
+    } catch {
+      // skip bad file
+    }
+  }
+}
+
+async function syncLessonsFromFiles() {
+  const files = readdirSync(LESSONS_DIR).filter((f) => f.endsWith('.mdx'))
+  for (const f of files) {
+    try {
+      const src = readFile(join(LESSONS_DIR, f), 'utf8')
+      const fm = parseFrontMatter(src)
+      if (!fm.slug) continue
+      await prisma.lesson.upsert({
+        where: { slug: String(fm.slug) },
+        update: {
+          track: String(fm.track || ''),
+          title: String(fm.title || fm.slug),
+          summary: fm.summary ? String(fm.summary) : '',
+          contentUrl: `packages/lessons/content/${f}`,
+          rubricId: String(fm.rubric || ''),
+          order: Number(fm.order ?? 0),
+          xpReward: Number(fm.xpReward ?? 10),
+          badges: []
+        },
+        create: {
+          slug: String(fm.slug),
+          track: String(fm.track || ''),
+          title: String(fm.title || fm.slug),
+          summary: fm.summary ? String(fm.summary) : '',
+          contentUrl: `packages/lessons/content/${f}`,
+          rubricId: String(fm.rubric || ''),
+          order: Number(fm.order ?? 0),
+          xpReward: Number(fm.xpReward ?? 10),
+          badges: []
+        }
+      })
+    } catch {
+      // skip bad file
+    }
+  }
+}
+
 async function dbLoadLessons(track?: string): Promise<LessonMeta[]> {
   try {
     const where = track ? { track } : {}
@@ -205,6 +269,16 @@ const server = createServer(async (req, res) => {
     if (!meta) return json(res, 404, { error: 'Lesson not found' })
     const rubric = (await dbRubricSummary(meta.rubric)) || loadRubricSummary(meta.rubric)
     return json(res, 200, { ...meta, rubric })
+  }
+
+  // Admin sync endpoints (dev only)
+  if (method === 'POST' && url.pathname === '/admin/rubrics/publish') {
+    await syncRubricsFromFiles()
+    return json(res, 200, { ok: true })
+  }
+  if (method === 'POST' && url.pathname === '/admin/lessons/sync') {
+    await syncLessonsFromFiles()
+    return json(res, 200, { ok: true })
   }
 
   // DB health
