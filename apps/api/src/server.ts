@@ -2,6 +2,7 @@
 import { createServer } from 'http'
 import { readFileSync, readdirSync } from 'fs'
 import { join, basename } from 'path'
+import { readFileSync as readFile } from 'fs'
 import { pingDb } from './db'
 
 function json(res: any, status: number, data: any) {
@@ -111,6 +112,24 @@ function loadRubricSummary(rubricId: string): { id: string; kind?: string; versi
 const server = createServer((req, res) => {
   const url = new URL(req.url || '/', 'http://localhost')
   const method = req.method || 'GET'
+
+  // Service health
+  if (method === 'GET' && url.pathname === '/health') {
+    return json(res, 200, {
+      ok: true,
+      service: 'api',
+      time: new Date().toISOString()
+    })
+  }
+
+  if (method === 'GET' && url.pathname === '/version') {
+    try {
+      const pkg = JSON.parse(readFile(join(process.cwd(), 'package.json'), 'utf8'))
+      return json(res, 200, { name: pkg.name, version: pkg.version })
+    } catch {
+      return json(res, 200, { version: '0.0.0' })
+    }
+  }
 
   // Lessons
   if (method === 'GET' && url.pathname === '/lessons') {
