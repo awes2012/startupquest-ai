@@ -1,11 +1,13 @@
-async function fetchLessons() {
+type LessonsResponse = { items: any[]; source?: 'db' | 'files' | 'unknown' }
+
+async function fetchLessons(): Promise<LessonsResponse> {
   try {
     const res = await fetch('http://localhost:4000/lessons', { cache: 'no-store' })
-    if (!res.ok) return []
+    if (!res.ok) return { items: [], source: 'unknown' }
     const data = await res.json()
-    return (data.items as any[]) || []
+    return { items: (data.items as any[]) || [], source: (data.source as any) || 'unknown' }
   } catch {
-    return []
+    return { items: [], source: 'unknown' }
   }
 }
 
@@ -26,12 +28,20 @@ async function fetchStatus() {
 }
 
 export default async function DashboardPage() {
-  const [lessons, status] = await Promise.all([fetchLessons(), fetchStatus()])
+  const [lessonData, status] = await Promise.all([fetchLessons(), fetchStatus()])
+  const lessons = lessonData.items
   return (
     <div>
       <h1>Dashboard</h1>
       <p>
         API: {status.health.ok ? 'OK' : 'DOWN'} · DB: {status.db.ok ? 'OK' : 'DOWN'} · Version: {status.version.version}
+      </p>
+      <p>
+        Lessons Source: <span style={{
+          padding: '2px 6px', borderRadius: 6,
+          background: lessonData.source === 'db' ? '#DCFCE7' : '#E0E7FF',
+          color: '#111827', border: '1px solid #CBD5E1'
+        }}>{lessonData.source === 'db' ? 'DB-backed' : lessonData.source === 'files' ? 'File-backed' : 'Unknown'}</span>
       </p>
       <ul>
         <li>Streak: 0</li>

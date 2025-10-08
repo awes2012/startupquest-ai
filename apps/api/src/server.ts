@@ -109,6 +109,45 @@ function loadRubricSummary(rubricId: string): { id: string; kind?: string; versi
   }
 }
 
+// Admin helpers: auth, rate limiting, logging
+function unauthorized(res: any) {
+  res.writeHead(401, { 'Content-Type': 'application/json' })
+  res.end(JSON.stringify({ error: 'Unauthorized' }))
+}
+
+function isAdmin(req: any): boolean {
+  const hdr = (req.headers?.['x-admin-key'] || req.headers?.['X-Admin-Key']) as string | undefined
+  const key = Array.isArray(hdr) ? hdr[0] : hdr
+  const expected = process.env.ADMIN_KEY
+  return Boolean(expected && key && key === expected)
+}
+
+type Bucket = { count: number; resetAt: number }
+const RATE_WINDOW_MS = Number(process.env.ADMIN_RATE_WINDOW_MS || 60_000)
+const RATE_MAX = Number(process.env.ADMIN_RATE_MAX || 20)
+const buckets = new Map<string, Bucket>()
+
+function rateLimitKey(ip: string | undefined, path: string) {
+  return `${ip || 'unknown'}:${path}`
+}
+
+function isRateLimited(ip: string | undefined, path: string): boolean {
+  const key = rateLimitKey(ip, path)
+  const now = Date.now()
+  let b = buckets.get(key)
+  if (!b || now > b.resetAt) {
+    b = { count: 0, resetAt: now + RATE_WINDOW_MS }
+    buckets.set(key, b)
+  }
+  b.count += 1
+  return b.count > RATE_MAX
+}
+
+function logAdmin(event: string, info: Record<string, unknown> = {}) {
+  // eslint-disable-next-line no-console
+  console.log('[admin]', new Date().toISOString(), event, info)
+}
+
 async function syncRubricsFromFiles() {
   const files = readdirSync(RUBRICS_DIR).filter((f) => f.endsWith('.json'))
   for (const f of files) {
@@ -251,35 +290,59 @@ const server = createServer(async (req, res) => {
     const track = url.searchParams.get('track') || undefined
     // Try DB first
     let items = await dbLoadLessons(track || undefined)
+    let source: 'db' | 'files' = 'db'
     if (!items || items.length === 0) {
       // Fallback to files
       items = loadLessons().filter((l) => (track ? l.track === track : true))
+      source = 'files'
     }
-    return json(res, 200, { items })
+    return json(res, 200, { items, source })
   }
 
   if (method === 'GET' && url.pathname.startsWith('/lessons/')) {
     const slug = url.pathname.split('/')[2]
     // Try DB first
     let meta = (await dbLoadLesson(slug)).meta
+    let source: 'db' | 'files' = 'db'
     if (!meta) {
       // Fallback to files
       meta = loadLesson(slug).meta
+      source = 'files'
     }
     if (!meta) return json(res, 404, { error: 'Lesson not found' })
     const rubric = (await dbRubricSummary(meta.rubric)) || loadRubricSummary(meta.rubric)
-    return json(res, 200, { ...meta, rubric })
+    return json(res, 200, { ...meta, rubric, source })
   }
 
   // Admin sync endpoints (dev only)
   if (method === 'POST' && url.pathname === '/admin/rubrics/publish') {
-    if (!isAdmin(req)) return unauthorized(res)
+    const ip = (req.socket && (req.socket as any).remoteAddress) || 'unknown'
+    if (isRateLimited(ip, url.pathname)) {
+      logAdmin('rate_limited', { ip, path: url.pathname })
+      res.writeHead(429, { 'Content-Type': 'application/json' })
+      return res.end(JSON.stringify({ error: 'Too Many Requests' }))
+    }
+    if (!isAdmin(req)) {
+      logAdmin('unauthorized', { ip, path: url.pathname })
+      return unauthorized(res)
+    }
     await syncRubricsFromFiles()
+    logAdmin('rubrics_published', { ip })
     return json(res, 200, { ok: true })
   }
   if (method === 'POST' && url.pathname === '/admin/lessons/sync') {
-    if (!isAdmin(req)) return unauthorized(res)
+    const ip = (req.socket && (req.socket as any).remoteAddress) || 'unknown'
+    if (isRateLimited(ip, url.pathname)) {
+      logAdmin('rate_limited', { ip, path: url.pathname })
+      res.writeHead(429, { 'Content-Type': 'application/json' })
+      return res.end(JSON.stringify({ error: 'Too Many Requests' }))
+    }
+    if (!isAdmin(req)) {
+      logAdmin('unauthorized', { ip, path: url.pathname })
+      return unauthorized(res)
+    }
     await syncLessonsFromFiles()
+    logAdmin('lessons_synced', { ip })
     return json(res, 200, { ok: true })
   }
 
@@ -331,14 +394,3 @@ server.listen(PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`[api] listening on http://localhost:${PORT}`)
 })
-function unauthorized(res: any) {
-  res.writeHead(401, { 'Content-Type': 'application/json' })
-  res.end(JSON.stringify({ error: 'Unauthorized' }))
-}
-
-function isAdmin(req: any): boolean {
-  const hdr = (req.headers?.['x-admin-key'] || req.headers?.['X-Admin-Key']) as string | undefined
-  const key = Array.isArray(hdr) ? hdr[0] : hdr
-  const expected = process.env.ADMIN_KEY
-  return Boolean(expected && key && key === expected)
-}
