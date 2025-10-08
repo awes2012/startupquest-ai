@@ -1,0 +1,115 @@
+// Prisma schema for StartupQuest AI
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String          @id @default(cuid())
+  email        String          @unique
+  name         String?
+  image        String?
+  createdAt    DateTime        @default(now())
+  profile      Profile?
+  progress     Progress[]
+  submissions  Submission[]
+  inventory    InventoryItem[]
+  events       Event[]
+}
+
+model Profile {
+  userId     String  @id
+  user       User    @relation(fields: [userId], references: [id])
+  streak     Int     @default(0)
+  xp         Int     @default(0)
+  gems       Int     @default(0)
+  locale     String  @default("en")
+  mentorTone String  @default("supportive")
+}
+
+model Lesson {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  track       String
+  title       String
+  summary     String
+  contentUrl  String
+  rubricId    String
+  order       Int
+  xpReward    Int      @default(10)
+  badges      String[] @default([])
+  createdAt   DateTime @default(now())
+
+  progress    Progress[]
+  submissions Submission[]
+}
+
+model Rubric {
+  id       String @id @default(cuid())
+  name     String
+  version  Int    @default(1)
+  kind     String // "code" | "business" | "quiz"
+  spec     Json   // zod‑compatible rubric spec
+}
+
+model Progress {
+  id        String   @id @default(cuid())
+  userId    String
+  lessonId  String
+  state     String   // not_started | in_progress | passed | failed
+  score     Float?
+  attempts  Int      @default(0)
+  startedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  User   User   @relation(fields: [userId], references: [id])
+  Lesson Lesson @relation(fields: [lessonId], references: [id])
+
+  @@index([userId])
+  @@index([lessonId])
+  @@unique([userId, lessonId])
+}
+
+model Submission {
+  id         String   @id @default(cuid())
+  userId     String
+  lessonId   String
+  payloadUrl String   // code zip, JSON, quiz answers
+  result     Json?
+  createdAt  DateTime @default(now())
+
+  User   User   @relation(fields: [userId], references: [id])
+  Lesson Lesson @relation(fields: [lessonId], references: [id])
+
+  @@index([userId])
+  @@index([lessonId])
+}
+
+model InventoryItem {
+  id     String @id @default(cuid())
+  userId String
+  kind   String // powerups, tokens
+  meta   Json
+
+  User User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Event {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // xp_awarded, streak_incremented, lesson_started, etc.
+  meta      Json
+  createdAt DateTime @default(now())
+
+  User User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+

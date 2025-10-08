@@ -1,0 +1,42 @@
+version: '3.9'
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: sq_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: startupquest
+    ports:
+      - '5432:5432'
+    volumes:
+      - sq_pg_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: sq_redis
+    ports:
+      - '6379:6379'
+
+  localstack:
+    image: localstack/localstack:stable
+    container_name: sq_localstack
+    environment:
+      SERVICES: s3
+      DEFAULT_REGION: us-east-1
+    ports:
+      - '4566:4566'
+    volumes:
+      - sq_localstack:/var/lib/localstack
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: sq_mailhog
+    ports:
+      - '1025:1025' # SMTP
+      - '8025:8025' # Web UI
+
+volumes:
+  sq_pg_data:
+  sq_localstack:
+
