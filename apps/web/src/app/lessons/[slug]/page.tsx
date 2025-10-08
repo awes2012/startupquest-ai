@@ -1,10 +1,25 @@
 interface Props { params: { slug: string } }
 
-export default function LessonPage({ params }: Props) {
+async function fetchLesson(slug: string) {
+  try {
+    const res = await fetch(`http://localhost:4000/lessons/${slug}`, { cache: 'no-store' })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+export default async function LessonPage({ params }: Props) {
+  const lesson = await fetchLesson(params.slug)
+  if (!lesson) return <div>Lesson not found. Ensure API is running.</div>
   return (
     <div>
-      <h1>Lesson: {params.slug}</h1>
-      <p>Lesson content will render here (MDX).</p>
+      <h1>{lesson.title}</h1>
+      <p>{lesson.summary}</p>
+      <p>
+        Track: {lesson.track} · XP: +{lesson.xpReward} · Rubric: {lesson.rubric?.id || lesson.rubric}
+      </p>
       <section>
         <h2>TutorChat</h2>
         <p>(stream placeholder)</p>
@@ -16,4 +31,3 @@ export default function LessonPage({ params }: Props) {
     </div>
   )
 }
-
