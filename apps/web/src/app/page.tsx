@@ -1,8 +1,10 @@
 type LessonsResponse = { items: any[]; source?: 'db' | 'files' | 'unknown' }
 
+import { API_URL } from '@/lib/config'
+
 async function fetchLessons(): Promise<LessonsResponse> {
   try {
-    const res = await fetch('http://localhost:4000/lessons', { cache: 'no-store' })
+    const res = await fetch(`${API_URL}/lessons`, { cache: 'no-store' })
     if (!res.ok) return { items: [], source: 'unknown' }
     const data = await res.json()
     return { items: (data.items as any[]) || [], source: (data.source as any) || 'unknown' }
@@ -14,9 +16,9 @@ async function fetchLessons(): Promise<LessonsResponse> {
 async function fetchStatus() {
   try {
     const [healthRes, verRes, dbRes] = await Promise.all([
-      fetch('http://localhost:4000/health', { cache: 'no-store' }),
-      fetch('http://localhost:4000/version', { cache: 'no-store' }),
-      fetch('http://localhost:4000/health/db', { cache: 'no-store' })
+      fetch(`${API_URL}/health`, { cache: 'no-store' }),
+      fetch(`${API_URL}/version`, { cache: 'no-store' }),
+      fetch(`${API_URL}/health/db`, { cache: 'no-store' })
     ])
     const health = healthRes.ok ? await healthRes.json() : { ok: false }
     const version = verRes.ok ? await verRes.json() : { version: '0.0.0' }

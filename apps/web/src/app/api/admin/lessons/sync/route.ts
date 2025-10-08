@@ -1,7 +1,9 @@
+import { API_URL } from '@/lib/config'
+
 export async function POST(request: Request) {
   try {
     const { key } = await request.json()
-    const res = await fetch('http://localhost:4000/admin/lessons/sync', {
+    const res = await fetch(`${API_URL}/admin/lessons/sync`, {
       method: 'POST',
       headers: { 'x-admin-key': key || '' }
     })
@@ -11,4 +13,3 @@ export async function POST(request: Request) {
     return new Response(JSON.stringify({ error: 'Bad request' }), { status: 400 })
   }
 }
-
