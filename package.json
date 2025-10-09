@@ -13,6 +13,13 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "dev:infra": "docker compose -f infra/docker/docker-compose.yml up -d",
-    "stop:infra": "docker compose -f infra/docker/docker-compose.yml down -v"
+    "stop:infra": "docker compose -f infra/docker/docker-compose.yml down -v",
+    "dev:web": "npm run --workspace web dev",
+    "dev:web:3001": "npm run --workspace web dev -- -p 3001",
+    "dev:api": "npm run --workspace api dev",
+    "dev:api:4001": "set PORT=4001&& npm run --workspace api dev",
+    "db:generate": "npm run --workspace api db:generate",
+    "db:migrate": "npm run --workspace api db:migrate",
+    "db:seed": "npm run --workspace api db:seed"
   }
 }
